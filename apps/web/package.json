@@ -1,0 +1,18 @@
+{
+  "name": "@glean-rag-chat/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "corepack pnpm exec next dev",
+    "build": "corepack pnpm exec next build",
+    "start": "corepack pnpm exec next start",
+    "typecheck": "corepack pnpm exec tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@glean-rag-chat/core": "workspace:*",
+    "next": "^15.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

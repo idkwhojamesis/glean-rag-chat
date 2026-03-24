@@ -1,0 +1,32 @@
+{
+  "name": "glean-rag-chat",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.6.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:web": "corepack pnpm --filter @glean-rag-chat/web dev",
+    "dev:mcp": "corepack pnpm --filter @glean-rag-chat/mcp-server dev",
+    "lint": "corepack pnpm exec eslint .",
+    "typecheck": "corepack pnpm -r typecheck",
+    "test": "corepack pnpm exec jest --runInBand",
+    "test:watch": "corepack pnpm exec jest --watch"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.23.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.6",
+    "eslint": "^9.23.0",
+    "globals": "^16.0.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

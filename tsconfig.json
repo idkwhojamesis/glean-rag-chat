@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./apps/mcp-server"
+    },
+    {
+      "path": "./apps/web"
+    }
+  ]
+}

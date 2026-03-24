@@ -1,0 +1,15 @@
+{
+  "name": "@glean-rag-chat/mcp-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "corepack pnpm exec tsx watch src/index.ts",
+    "start": "corepack pnpm exec tsx src/index.ts",
+    "typecheck": "corepack pnpm exec tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@glean-rag-chat/core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  }
+}
