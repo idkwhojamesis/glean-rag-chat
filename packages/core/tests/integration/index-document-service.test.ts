@@ -34,6 +34,7 @@ describe('indexDocumentService', () => {
           }
         })
         .mockResolvedValueOnce(indexedResponse),
+      getDocumentStatus: jest.fn(),
       checkDocumentAccess: jest.fn().mockResolvedValue({
         hasAccess: true
       })
@@ -127,6 +128,205 @@ describe('indexDocumentService', () => {
     expect(waitForDelay).toHaveBeenCalledTimes(1);
   });
 
+  it('falls back to the document status endpoint when debug requests fail', async () => {
+    const indexingClient = {
+      indexDocument: jest.fn().mockResolvedValue(undefined),
+      debugDocument: jest.fn().mockRejectedValue(new Error('debug unavailable')),
+      getDocumentStatus: jest
+        .fn()
+        .mockResolvedValueOnce({
+          uploadStatus: 'STATUS_UNKNOWN',
+          indexingStatus: 'STATUS_UNKNOWN'
+        })
+        .mockResolvedValueOnce({
+          uploadStatus: 'UPLOADED',
+          indexingStatus: 'NOT_INDEXED'
+        })
+        .mockResolvedValueOnce({
+          uploadStatus: 'UPLOADED',
+          indexingStatus: 'INDEXED'
+        }),
+      checkDocumentAccess: jest.fn().mockResolvedValue({
+        hasAccess: true
+      })
+    };
+    const searchClient = {
+      search: jest.fn().mockResolvedValue({
+        results: [
+          {
+            document: {
+              id: 'doc-onboarding-guide-20260324t153045000z'
+            },
+            url: 'https://example.com/docs/onboarding'
+          }
+        ]
+      })
+    };
+    const waitForDelay = jest.fn().mockResolvedValue(undefined);
+
+    const service = createIndexDocumentService({
+      env,
+      indexingClient,
+      searchClient,
+      waitForDelay,
+      now: () => new Date('2026-03-24T15:30:45.000Z'),
+      debugPollDelayMs: 0
+    });
+
+    await expect(
+      service.indexDocument({
+        url: 'https://example.com/docs/onboarding',
+        type: 'Documentation',
+        title: 'Onboarding Guide',
+        body: 'Body text'
+      })
+    ).resolves.toMatchObject({
+      status: 'SUCCESS',
+      documentId: 'doc-onboarding-guide-20260324t153045000z',
+      verification: {
+        debugStatus: 'INDEXED',
+        accessCheck: true,
+        searchCheck: true
+      }
+    });
+
+    expect(indexingClient.debugDocument).toHaveBeenCalledTimes(3);
+    expect(indexingClient.getDocumentStatus).toHaveBeenCalledTimes(3);
+    expect(waitForDelay).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries search verification until the document becomes discoverable', async () => {
+    const indexingClient = {
+      indexDocument: jest.fn().mockResolvedValue(undefined),
+      debugDocument: jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: {
+            uploadStatus: 'NOT_UPLOADED',
+            indexingStatus: 'NOT_INDEXED'
+          }
+        })
+        .mockResolvedValueOnce(indexedResponse),
+      getDocumentStatus: jest.fn(),
+      checkDocumentAccess: jest.fn().mockResolvedValue({
+        hasAccess: true
+      })
+    };
+    const searchClient = {
+      search: jest
+        .fn()
+        .mockResolvedValueOnce({
+          results: [
+            {
+              document: {
+                id: 'different-doc-id'
+              },
+              url: 'https://example.com/docs/benefits'
+            }
+          ]
+        })
+        .mockResolvedValueOnce({
+          results: [
+            {
+              document: {
+                id: 'doc-onboarding-guide-20260324t153045000z'
+              },
+              url: 'https://example.com/docs/onboarding'
+            }
+          ]
+        })
+    };
+    const waitForDelay = jest.fn().mockResolvedValue(undefined);
+
+    const service = createIndexDocumentService({
+      env,
+      indexingClient,
+      searchClient,
+      waitForDelay,
+      now: () => new Date('2026-03-24T15:30:45.000Z'),
+      debugPollDelayMs: 0,
+      searchPollDelayMs: 0
+    });
+
+    await expect(
+      service.indexDocument({
+        url: 'https://example.com/docs/onboarding',
+        type: 'Documentation',
+        title: 'Onboarding Guide',
+        body: 'Body text'
+      })
+    ).resolves.toMatchObject({
+      status: 'SUCCESS',
+      documentId: 'doc-onboarding-guide-20260324t153045000z',
+      verification: {
+        debugStatus: 'INDEXED',
+        accessCheck: true,
+        searchCheck: true
+      }
+    });
+
+    expect(searchClient.search).toHaveBeenCalledTimes(2);
+    expect(waitForDelay).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts Glean custom datasource search IDs for the indexed document', async () => {
+    const indexingClient = {
+      indexDocument: jest.fn().mockResolvedValue(undefined),
+      debugDocument: jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: {
+            uploadStatus: 'NOT_UPLOADED',
+            indexingStatus: 'NOT_INDEXED'
+          }
+        })
+        .mockResolvedValueOnce(indexedResponse),
+      getDocumentStatus: jest.fn(),
+      checkDocumentAccess: jest.fn().mockResolvedValue({
+        hasAccess: true
+      })
+    };
+    const searchClient = {
+      search: jest.fn().mockResolvedValue({
+        results: [
+          {
+            document: {
+              id: 'CUSTOM_INTERVIEWDS_Documentation_doc-onboarding-guide-20260324t153045000z',
+              url: 'https://example.com/docs/onboarding'
+            },
+            url: 'https://example.com/docs/onboarding'
+          }
+        ]
+      })
+    };
+
+    const service = createIndexDocumentService({
+      env,
+      indexingClient,
+      searchClient,
+      waitForDelay: jest.fn().mockResolvedValue(undefined),
+      now: () => new Date('2026-03-24T15:30:45.000Z'),
+      debugPollDelayMs: 0
+    });
+
+    await expect(
+      service.indexDocument({
+        url: 'https://example.com/docs/onboarding',
+        type: 'Documentation',
+        title: 'Onboarding Guide',
+        body: 'Body text'
+      })
+    ).resolves.toMatchObject({
+      status: 'SUCCESS',
+      documentId: 'doc-onboarding-guide-20260324t153045000z',
+      verification: {
+        debugStatus: 'INDEXED',
+        accessCheck: true,
+        searchCheck: true
+      }
+    });
+  });
+
   it('regenerates the document ID when the first candidate already exists', async () => {
     const indexingClient = {
       indexDocument: jest.fn().mockResolvedValue(undefined),
@@ -140,6 +340,7 @@ describe('indexDocumentService', () => {
           }
         })
         .mockResolvedValueOnce(indexedResponse),
+      getDocumentStatus: jest.fn(),
       checkDocumentAccess: jest.fn().mockResolvedValue({
         hasAccess: true
       })
@@ -204,6 +405,7 @@ describe('indexDocumentService', () => {
             indexingStatus: 'NOT_INDEXED'
           }
         }),
+      getDocumentStatus: jest.fn(),
       checkDocumentAccess: jest.fn()
     };
     const searchClient = {
@@ -226,7 +428,10 @@ describe('indexDocumentService', () => {
         type: 'Documentation',
         body: 'Body text'
       })
-    ).rejects.toBeInstanceOf(TimeoutError);
+    ).rejects.toMatchObject<Partial<TimeoutError>>({
+      message:
+        'Document indexing timed out before reaching INDEXED status. Last observed status: upload=UPLOADED, indexing=NOT_INDEXED.'
+    });
 
     expect(indexingClient.checkDocumentAccess).not.toHaveBeenCalled();
     expect(searchClient.search).not.toHaveBeenCalled();
@@ -244,6 +449,7 @@ describe('indexDocumentService', () => {
           }
         })
         .mockResolvedValueOnce(indexedResponse),
+      getDocumentStatus: jest.fn(),
       checkDocumentAccess: jest.fn().mockResolvedValue({
         hasAccess: false
       })
@@ -286,6 +492,7 @@ describe('indexDocumentService', () => {
           }
         })
         .mockResolvedValueOnce(indexedResponse),
+      getDocumentStatus: jest.fn(),
       checkDocumentAccess: jest.fn().mockResolvedValue({
         hasAccess: true
       })
@@ -309,7 +516,9 @@ describe('indexDocumentService', () => {
       searchClient,
       waitForDelay: jest.fn().mockResolvedValue(undefined),
       now: () => new Date('2026-03-24T15:30:45.000Z'),
-      debugPollDelayMs: 0
+      debugPollDelayMs: 0,
+      searchPollAttempts: 2,
+      searchPollDelayMs: 0
     });
 
     await expect(
@@ -319,7 +528,9 @@ describe('indexDocumentService', () => {
         body: 'Body text'
       })
     ).rejects.toMatchObject<Partial<ExternalServiceError>>({
-      message: 'Indexed document is not discoverable through search yet'
+      message: 'Indexed document is not discoverable through search yet. Last observed search result IDs: different-doc-id.'
     });
+
+    expect(searchClient.search).toHaveBeenCalledTimes(2);
   });
 });

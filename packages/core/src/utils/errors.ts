@@ -70,6 +70,18 @@ export class TimeoutError extends AppError {
   }
 }
 
+export class ConfigurationError extends AppError {
+  constructor(message: string, details?: AppErrorDetails, cause?: unknown) {
+    super(message, {
+      code: 'CONFIGURATION_ERROR',
+      statusCode: 500,
+      expose: true,
+      ...(details === undefined ? {} : { details }),
+      ...(cause === undefined ? {} : { cause })
+    });
+  }
+}
+
 export function isAppError(error: unknown): error is AppError {
   return error instanceof AppError;
 }

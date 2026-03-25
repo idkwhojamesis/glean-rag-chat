@@ -1,6 +1,6 @@
 import { InputValidationError } from '@glean-rag-chat/core';
 
-import { createIndexRouteHandler } from './route.js';
+import { createIndexRouteHandler } from './handler.js';
 
 describe('/api/index route', () => {
   it('returns a successful JSON response when the shared service succeeds', async () => {
@@ -72,5 +72,29 @@ describe('/api/index route', () => {
       statusReason: 'Document body is required'
     });
     expect(response.status).toBe(400);
+  });
+
+  it('returns 400 when the request body is not valid JSON', async () => {
+    const service = {
+      indexDocument: jest.fn()
+    };
+    const POST = createIndexRouteHandler({ service });
+
+    const response = await POST(
+      new Request('http://localhost/api/index', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json'
+        },
+        body: '{'
+      })
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      status: 'ERROR',
+      statusReason: 'Request body must be valid JSON.'
+    });
+    expect(response.status).toBe(400);
+    expect(service.indexDocument).not.toHaveBeenCalled();
   });
 });

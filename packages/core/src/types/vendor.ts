@@ -24,6 +24,8 @@ import type {
   DocumentStatusResponse,
   FacetFilter,
   FacetFilterValue,
+  GetDocumentStatusRequest,
+  GetDocumentStatusResponse,
   IndexDocumentRequest,
   SearchRequest,
   SearchRequestOptions,
@@ -52,6 +54,8 @@ export type GleanContentDefinition = ContentDefinition;
 export type GleanCustomProperty = CustomProperty;
 export type GleanDebugDocumentRequest = DebugDocumentRequest;
 export type GleanDebugDocumentResponse = DebugDocumentResponse;
+export type GleanGetDocumentStatusRequest = GetDocumentStatusRequest;
+export type GleanGetDocumentStatusResponse = GetDocumentStatusResponse;
 export type GleanDocumentDefinition = DocumentDefinition;
 export type GleanDocumentPermissionsDefinition = DocumentPermissionsDefinition;
 export type GleanDocumentSpec = DocumentSpecUnion;

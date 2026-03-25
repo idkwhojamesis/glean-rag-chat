@@ -101,6 +101,73 @@ describe('glean indexing client', () => {
     });
   });
 
+  it('accepts debug responses returned as application/json without charset metadata', async () => {
+    const { httpClient } = createCapturingHttpClient({
+      responseBody: {
+        status: {
+          uploadStatus: 'UPLOADED',
+          indexingStatus: 'INDEXED'
+        }
+      },
+      responseContentType: 'application/json'
+    });
+
+    const client = createGleanIndexingClient({
+      env: {
+        GLEAN_DATASOURCE: 'interviewds',
+        GLEAN_INDEXING_API_TOKEN: 'indexing-token',
+        GLEAN_INSTANCE: 'acme'
+      },
+      httpClient
+    });
+
+    await expect(
+      client.debugDocument({
+        objectType: 'Documentation',
+        docId: 'doc-onboarding-123'
+      })
+    ).resolves.toEqual({
+      status: {
+        uploadStatus: 'UPLOADED',
+        indexingStatus: 'INDEXED'
+      }
+    });
+  });
+
+  it('sends status requests to the document status endpoint', async () => {
+    const { httpClient, getCapturedRequest } = createCapturingHttpClient({
+      responseBody: {
+        uploadStatus: 'UPLOADED',
+        indexingStatus: 'INDEXED'
+      }
+    });
+
+    const client = createGleanIndexingClient({
+      env: {
+        GLEAN_DATASOURCE: 'interviewds',
+        GLEAN_INDEXING_API_TOKEN: 'indexing-token',
+        GLEAN_INSTANCE: 'acme'
+      },
+      httpClient
+    });
+
+    await client.getDocumentStatus({
+      datasource: 'interviewds',
+      objectType: 'Documentation',
+      docId: 'doc-onboarding-123'
+    });
+
+    const request = getCapturedRequest();
+
+    expect(request.method).toBe('POST');
+    expect(request.url).toBe('https://acme-be.glean.com/api/index/v1/getdocumentstatus');
+    expect(JSON.parse(request.body)).toEqual({
+      datasource: 'interviewds',
+      objectType: 'Documentation',
+      docId: 'doc-onboarding-123'
+    });
+  });
+
   it('sends access-check requests to the document access endpoint', async () => {
     const { httpClient, getCapturedRequest } = createCapturingHttpClient({
       responseBody: {

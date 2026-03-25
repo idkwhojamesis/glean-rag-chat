@@ -1,0 +1,8 @@
+{
+  "url": "https://example.com/docs/remote-onboarding",
+  "type": "Documentation",
+  "title": "Remote Onboarding Guide",
+  "summary": "Checklist for a new employee's first week.",
+  "body": "Before day one, confirm your laptop shipment, complete payroll setup, and enroll in benefits. On day one, sign in with Okta, join the company Slack workspace, and attend the onboarding session. During the first week, finish security training and review the engineering handbook.",
+  "purpose": "Help new employees prepare for their first week."
+}

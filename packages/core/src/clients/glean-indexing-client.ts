@@ -6,6 +6,8 @@ import type {
   GleanCheckDocumentAccessResponse,
   GleanDebugDocumentRequest,
   GleanDebugDocumentResponse,
+  GleanGetDocumentStatusRequest,
+  GleanGetDocumentStatusResponse,
   GleanIndexDocumentRequest,
   HTTPClient
 } from '../types/vendor.js';
@@ -20,7 +22,34 @@ export interface CreateGleanIndexingClientOptions {
 export interface GleanIndexingClient {
   indexDocument(request: GleanIndexDocumentRequest): Promise<void>;
   debugDocument(request: GleanDebugDocumentRequest): Promise<GleanDebugDocumentResponse>;
+  getDocumentStatus(request: GleanGetDocumentStatusRequest): Promise<GleanGetDocumentStatusResponse>;
   checkDocumentAccess(request: GleanCheckDocumentAccessRequest): Promise<GleanCheckDocumentAccessResponse>;
+}
+
+function parseDebugDocumentResponseFromError(error: unknown): GleanDebugDocumentResponse | null {
+  if (
+    error === null ||
+    typeof error !== 'object' ||
+    !('statusCode' in error) ||
+    error.statusCode !== 200 ||
+    !('body' in error)
+  ) {
+    return null;
+  }
+
+  const { body } = error;
+
+  try {
+    const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
+
+    if (parsedBody === null || typeof parsedBody !== 'object') {
+      return null;
+    }
+
+    return parsedBody as GleanDebugDocumentResponse;
+  } catch {
+    return null;
+  }
 }
 
 export function createGleanIndexingClient(options: CreateGleanIndexingClientOptions): GleanIndexingClient {
@@ -48,7 +77,19 @@ export function createGleanIndexingClient(options: CreateGleanIndexingClientOpti
     },
 
     async debugDocument(request) {
-      const response = await sdk.indexing.documents.debug(request, options.env.GLEAN_DATASOURCE);
+      let response: GleanDebugDocumentResponse;
+
+      try {
+        response = await sdk.indexing.documents.debug(request, options.env.GLEAN_DATASOURCE);
+      } catch (error) {
+        const parsedResponse = parseDebugDocumentResponseFromError(error);
+
+        if (parsedResponse === null) {
+          throw error;
+        }
+
+        response = parsedResponse;
+      }
 
       options.logger?.debug(
         {
@@ -58,6 +99,22 @@ export function createGleanIndexingClient(options: CreateGleanIndexingClientOpti
           uploadStatus: response.status?.uploadStatus
         },
         'Glean document debug completed'
+      );
+
+      return response;
+    },
+
+    async getDocumentStatus(request) {
+      const response = await sdk.indexing.documents.status(request);
+
+      options.logger?.debug(
+        {
+          datasource: request.datasource,
+          documentId: request.docId,
+          indexingStatus: response.indexingStatus,
+          uploadStatus: response.uploadStatus
+        },
+        'Glean document status completed'
       );
 
       return response;

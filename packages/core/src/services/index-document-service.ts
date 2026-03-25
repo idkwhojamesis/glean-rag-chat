@@ -20,8 +20,10 @@ import type { VerificationDebugStatus } from '../types/domain.js';
 import type { GleanSearchResult } from '../types/vendor.js';
 
 const DEFAULT_MAX_ID_ATTEMPTS = 5;
-const DEFAULT_DEBUG_POLL_ATTEMPTS = 4;
+const DEFAULT_DEBUG_POLL_ATTEMPTS = 12;
 const DEFAULT_DEBUG_POLL_DELAY_MS = 5000;
+const DEFAULT_SEARCH_POLL_ATTEMPTS = 6;
+const DEFAULT_SEARCH_POLL_DELAY_MS = 5000;
 
 type IndexServiceEnv = Pick<
   AppEnv,
@@ -42,10 +44,17 @@ export interface CreateIndexDocumentServiceOptions {
   maxIdAttempts?: number;
   debugPollAttempts?: number;
   debugPollDelayMs?: number;
+  searchPollAttempts?: number;
+  searchPollDelayMs?: number;
 }
 
 export interface IndexDocumentService {
   indexDocument(input: unknown): Promise<IndexDocumentSuccessResult>;
+}
+
+interface DocumentStatusSnapshot {
+  uploadStatus: string | undefined;
+  indexingStatus: string | undefined;
 }
 
 function buildVerification(
@@ -64,6 +73,62 @@ function extractDocumentIdFromSearchResult(result: GleanSearchResult) {
   return result.document?.id ?? result.document?.metadata?.documentId;
 }
 
+function collectSearchResultDocumentIds(results: readonly GleanSearchResult[]) {
+  return results
+    .map(extractDocumentIdFromSearchResult)
+    .filter((documentId): documentId is string => documentId !== undefined);
+}
+
+function normalizeComparableUrl(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+
+    parsedUrl.hash = '';
+
+    if (parsedUrl.pathname.length > 1) {
+      parsedUrl.pathname = parsedUrl.pathname.replace(/\/+$/, '');
+    }
+
+    return parsedUrl.toString();
+  } catch {
+    return url.replace(/\/+$/, '');
+  }
+}
+
+function buildCustomDatasourceDocumentId(
+  datasource: string,
+  objectType: IndexDocumentInput['type'],
+  documentId: string
+) {
+  return `CUSTOM_${datasource.toUpperCase()}_${objectType}_${documentId}`;
+}
+
+function searchResultMatchesIndexedDocument(
+  result: GleanSearchResult,
+  input: IndexDocumentInput,
+  datasource: string,
+  documentId: string
+) {
+  const indexedUrl = normalizeComparableUrl(input.url);
+  const resultUrl = result.document?.url ?? result.url;
+
+  if (resultUrl !== undefined && normalizeComparableUrl(resultUrl) === indexedUrl) {
+    return true;
+  }
+
+  const resultDocumentId = extractDocumentIdFromSearchResult(result);
+
+  if (resultDocumentId === undefined) {
+    return false;
+  }
+
+  return (
+    resultDocumentId === documentId ||
+    resultDocumentId === buildCustomDatasourceDocumentId(datasource, input.type, documentId) ||
+    resultDocumentId.endsWith(`_${documentId}`)
+  );
+}
+
 function isDocumentIdAvailable(
   uploadStatus: string | undefined,
   indexingStatus: string | undefined
@@ -77,6 +142,10 @@ function isDocumentIdAvailable(
   }
 
   return mapIndexingDebugStatusToVerificationStatus(uploadStatus, indexingStatus) === 'NOT_FOUND';
+}
+
+function formatStatusValue(status: string | undefined) {
+  return status ?? 'STATUS_UNKNOWN';
 }
 
 export function createIndexDocumentService(options: CreateIndexDocumentServiceOptions): IndexDocumentService {
@@ -98,15 +167,48 @@ export function createIndexDocumentService(options: CreateIndexDocumentServiceOp
   const maxIdAttempts = options.maxIdAttempts ?? DEFAULT_MAX_ID_ATTEMPTS;
   const debugPollAttempts = options.debugPollAttempts ?? DEFAULT_DEBUG_POLL_ATTEMPTS;
   const debugPollDelayMs = options.debugPollDelayMs ?? DEFAULT_DEBUG_POLL_DELAY_MS;
+  const searchPollAttempts = options.searchPollAttempts ?? DEFAULT_SEARCH_POLL_ATTEMPTS;
+  const searchPollDelayMs = options.searchPollDelayMs ?? DEFAULT_SEARCH_POLL_DELAY_MS;
 
-  async function callDebugDocument(input: IndexDocumentInput, documentId: string) {
+  async function getDocumentStatusSnapshot(
+    input: IndexDocumentInput,
+    documentId: string
+  ): Promise<DocumentStatusSnapshot> {
     try {
-      return await indexingClient.debugDocument({
+      const response = await indexingClient.debugDocument({
         objectType: input.type,
         docId: documentId
       });
-    } catch (error) {
-      throw new ExternalServiceError('Failed to check document indexing status', { documentId }, error);
+
+      return {
+        uploadStatus: response.status?.uploadStatus,
+        indexingStatus: response.status?.indexingStatus
+      };
+    } catch (debugError) {
+      logger.warn(
+        {
+          datasource: options.env.GLEAN_DATASOURCE,
+          documentId,
+          objectType: input.type,
+          error: debugError
+        },
+        'Debug document request failed, falling back to deprecated status endpoint'
+      );
+
+      try {
+        const response = await indexingClient.getDocumentStatus({
+          datasource: options.env.GLEAN_DATASOURCE,
+          objectType: input.type,
+          docId: documentId
+        });
+
+        return {
+          uploadStatus: response.uploadStatus,
+          indexingStatus: response.indexingStatus
+        };
+      } catch (statusError) {
+        throw new ExternalServiceError('Failed to check document indexing status', { documentId }, statusError);
+      }
     }
   }
 
@@ -117,9 +219,9 @@ export function createIndexDocumentService(options: CreateIndexDocumentServiceOp
       const candidateDocumentId = createDocumentId(input, {
         timestamp: new Date(baseTimestamp.getTime() + attempt)
       });
-      const debugResponse = await callDebugDocument(input, candidateDocumentId);
+      const statusSnapshot = await getDocumentStatusSnapshot(input, candidateDocumentId);
 
-      if (isDocumentIdAvailable(debugResponse.status?.uploadStatus, debugResponse.status?.indexingStatus)) {
+      if (isDocumentIdAvailable(statusSnapshot.uploadStatus, statusSnapshot.indexingStatus)) {
         return candidateDocumentId;
       }
 
@@ -127,8 +229,8 @@ export function createIndexDocumentService(options: CreateIndexDocumentServiceOp
         {
           attempt: attempt + 1,
           candidateDocumentId,
-          indexingStatus: debugResponse.status?.indexingStatus,
-          uploadStatus: debugResponse.status?.uploadStatus
+          indexingStatus: statusSnapshot.indexingStatus,
+          uploadStatus: statusSnapshot.uploadStatus
         },
         'Generated document ID already exists, retrying'
       );
@@ -139,15 +241,20 @@ export function createIndexDocumentService(options: CreateIndexDocumentServiceOp
 
   async function pollForIndexedStatus(input: IndexDocumentInput, documentId: string) {
     let lastDebugStatus: VerificationDebugStatus = 'UNKNOWN';
+    let lastStatusSnapshot: DocumentStatusSnapshot = {
+      uploadStatus: undefined,
+      indexingStatus: undefined
+    };
 
     for (let attempt = 1; attempt <= debugPollAttempts; attempt += 1) {
-      const debugResponse = await callDebugDocument(input, documentId);
+      const statusSnapshot = await getDocumentStatusSnapshot(input, documentId);
       const debugStatus = mapIndexingDebugStatusToVerificationStatus(
-        debugResponse.status?.uploadStatus,
-        debugResponse.status?.indexingStatus
+        statusSnapshot.uploadStatus,
+        statusSnapshot.indexingStatus
       );
 
       lastDebugStatus = debugStatus;
+      lastStatusSnapshot = statusSnapshot;
 
       if (debugStatus === 'INDEXED') {
         return debugStatus;
@@ -175,10 +282,84 @@ export function createIndexDocumentService(options: CreateIndexDocumentServiceOp
       }
     }
 
-    throw new TimeoutError('Document indexing timed out before reaching INDEXED status', {
-      documentId,
-      verification: buildVerification(lastDebugStatus, false, false)
-    });
+    throw new TimeoutError(
+      `Document indexing timed out before reaching INDEXED status. Last observed status: upload=${formatStatusValue(lastStatusSnapshot.uploadStatus)}, indexing=${formatStatusValue(lastStatusSnapshot.indexingStatus)}.`,
+      {
+        documentId,
+        uploadStatus: lastStatusSnapshot.uploadStatus,
+        indexingStatus: lastStatusSnapshot.indexingStatus,
+        waitMs: debugPollDelayMs * Math.max(debugPollAttempts - 1, 0),
+        verification: buildVerification(lastDebugStatus, false, false)
+      }
+    );
+  }
+
+  async function verifySearchDiscoverability(
+    input: IndexDocumentInput,
+    documentId: string,
+    debugStatus: VerificationDebugStatus
+  ) {
+    let lastObservedDocumentIds: string[] = [];
+
+    for (let attempt = 1; attempt <= searchPollAttempts; attempt += 1) {
+      try {
+        const searchResponse = await searchClient.search(
+          mapChatInputToSearchRequest(
+            {
+              newMessage: documentId
+            },
+            {
+              datasource: options.env.GLEAN_DATASOURCE
+            }
+          )
+        );
+        const resultDocumentIds = collectSearchResultDocumentIds(searchResponse.results ?? []);
+
+        lastObservedDocumentIds = resultDocumentIds;
+
+        if (
+          (searchResponse.results ?? []).some((result) =>
+            searchResultMatchesIndexedDocument(result, input, options.env.GLEAN_DATASOURCE, documentId)
+          )
+        ) {
+          return true;
+        }
+
+        if (attempt < searchPollAttempts) {
+          logger.debug(
+            {
+              attempt,
+              documentId,
+              observedDocumentIds: resultDocumentIds,
+              nextDelayMs: searchPollDelayMs
+            },
+            'Indexed document not discoverable through search yet, waiting before retry'
+          );
+
+          await waitForDelay(searchPollDelayMs);
+        }
+      } catch (error) {
+        throw new ExternalServiceError(
+          'Failed to verify document discoverability through search',
+          {
+            documentId,
+            verification: buildVerification(debugStatus, true, false)
+          },
+          error
+        );
+      }
+    }
+
+    throw new ExternalServiceError(
+      `Indexed document is not discoverable through search yet. Last observed search result IDs: ${
+        lastObservedDocumentIds.length === 0 ? 'none' : lastObservedDocumentIds.join(', ')
+      }.`,
+      {
+        documentId,
+        observedDocumentIds: lastObservedDocumentIds,
+        verification: buildVerification(debugStatus, true, false)
+      }
+    );
   }
 
   return {
@@ -234,34 +415,7 @@ export function createIndexDocumentService(options: CreateIndexDocumentServiceOp
         });
       }
 
-      let searchCheck = false;
-
-      try {
-        const searchResponse = await searchClient.search(
-          mapChatInputToSearchRequest(
-            {
-              newMessage: documentId
-            },
-            {
-              datasource: options.env.GLEAN_DATASOURCE
-            }
-          )
-        );
-
-        searchCheck = (searchResponse.results ?? []).some((result) => extractDocumentIdFromSearchResult(result) === documentId);
-      } catch (error) {
-        throw new ExternalServiceError('Failed to verify document discoverability through search', {
-          documentId,
-          verification: buildVerification(debugStatus, true, false)
-        }, error);
-      }
-
-      if (!searchCheck) {
-        throw new ExternalServiceError('Indexed document is not discoverable through search yet', {
-          documentId,
-          verification: buildVerification(debugStatus, true, false)
-        });
-      }
+      const searchCheck = await verifySearchDiscoverability(parsedInput, documentId, debugStatus);
 
       return {
         status: 'SUCCESS',

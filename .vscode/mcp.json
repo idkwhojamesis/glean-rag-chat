@@ -1,0 +1,18 @@
+{
+  "servers": {
+    "glean-mcp-rag": {
+      "type": "stdio",
+      "command": "corepack",
+      "args": [
+        "pnpm",
+        "--dir",
+        "${workspaceFolder}",
+        "--filter",
+        "@glean-rag-chat/mcp-server",
+        "start"
+      ],
+      "envFile": "${workspaceFolder}/.env.local"
+    }
+  },
+  "inputs": []
+}

@@ -1,10 +1,16 @@
-async function main() {
-  console.log('MCP placeholder server bootstrapped. Tool registration arrives in Phase 7.');
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-  process.stdin.resume();
-  await new Promise<void>((resolve) => {
-    process.stdin.once('close', resolve);
-  });
+import { createGleanInterviewdsMcpServer } from './server.js';
+
+export async function main() {
+  const server = createGleanInterviewdsMcpServer();
+  const transport = new StdioServerTransport();
+
+  await server.connect(transport);
+  console.error('glean-interviewds-mcp-server is running on stdio');
 }
 
-void main();
+void main().catch((error) => {
+  console.error('MCP server error:', error);
+  process.exit(1);
+});

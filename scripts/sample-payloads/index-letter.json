@@ -1,0 +1,7 @@
+{
+  "url": "https://example.com/letters/welcome-from-hr",
+  "type": "Letter",
+  "title": "Welcome Letter From HR",
+  "body": "Welcome to the company. Please complete payroll enrollment, choose your benefits, and verify your emergency contact information before your first day. If your laptop does not arrive before day one, contact IT support immediately.",
+  "purpose": "Provide a short pre-start checklist for new hires."
+}

@@ -1,44 +1,460 @@
 .page {
-  display: grid;
-  place-items: center;
   min-height: 100vh;
   padding: 32px;
 }
 
-.panel {
-  width: min(100%, 720px);
-  padding: 40px;
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  background: var(--panel);
-  box-shadow: 0 24px 80px rgba(52, 36, 22, 0.08);
-  backdrop-filter: blur(14px);
+.shell {
+  width: min(1360px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
 }
 
-.eyebrow {
+.hero {
+  padding: 36px;
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(246, 236, 218, 0.78)),
+    var(--panel);
+  box-shadow: 0 28px 90px rgba(52, 36, 22, 0.12);
+}
+
+.eyebrow,
+.panelEyebrow {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--accent);
 }
 
 .title {
   margin: 0;
-  font-size: clamp(2.4rem, 5vw, 4rem);
-  line-height: 0.95;
+  font-size: clamp(2.7rem, 5vw, 4.6rem);
+  line-height: 0.92;
 }
 
-.body {
-  margin: 20px 0 0;
-  max-width: 56ch;
+.heroBody {
+  max-width: 62ch;
+  margin: 16px 0 0;
   font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+.heroBody code {
+  padding: 0.12rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(161, 64, 38, 0.12);
+  font-size: 0.92em;
+}
+
+.pillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.pill {
+  padding: 9px 14px;
+  border: 1px solid rgba(161, 64, 38, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 0.88rem;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(360px, 460px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.panel {
+  display: grid;
+  gap: 20px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: 0 24px 80px rgba(52, 36, 22, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.chatPanel {
+  min-height: 720px;
+  grid-template-rows: auto minmax(240px, 1fr) auto auto auto;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.panelTitle,
+.statusTitle {
+  margin: 0;
+  font-size: 1.55rem;
+  line-height: 1.15;
+}
+
+.stateBadge,
+.successBadge,
+.tokenBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.stateBadge,
+.tokenBadge {
+  border: 1px solid rgba(30, 27, 22, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.successBadge {
+  border: 1px solid rgba(30, 112, 81, 0.22);
+  background: rgba(30, 112, 81, 0.1);
+  color: #165b42;
+}
+
+.chatHeaderActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.form {
+  display: grid;
+  gap: 18px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.input,
+.select,
+.textarea,
+.textareaCompact {
+  width: 100%;
+  border: 1px solid rgba(30, 27, 22, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  color: inherit;
+  font: inherit;
+  padding: 14px 16px;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus,
+.textareaCompact:focus {
+  outline: none;
+  border-color: rgba(161, 64, 38, 0.48);
+  box-shadow: 0 0 0 4px rgba(161, 64, 38, 0.12);
+}
+
+.textarea,
+.textareaCompact {
+  resize: vertical;
+}
+
+.charCount {
+  justify-self: end;
+  font-size: 0.78rem;
+  color: rgba(30, 27, 22, 0.6);
+}
+
+.buttonRow {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.primaryButton,
+.secondaryButton,
+.promptButton {
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.primaryButton {
+  padding: 14px 22px;
+  background: linear-gradient(135deg, #af4d31, #8e331c);
+  color: #fff8f3;
+  box-shadow: 0 14px 28px rgba(142, 51, 28, 0.26);
+}
+
+.secondaryButton {
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.72);
+  color: inherit;
+  border: 1px solid rgba(30, 27, 22, 0.14);
+}
+
+.promptButton {
+  padding: 11px 14px;
+  background: rgba(161, 64, 38, 0.1);
+  color: inherit;
+}
+
+.primaryButton:hover:not(:disabled),
+.secondaryButton:hover:not(:disabled),
+.promptButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.promptButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.errorBanner {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(143, 36, 22, 0.18);
+  background: rgba(200, 69, 42, 0.1);
+  color: #7f2818;
+  line-height: 1.6;
+}
+
+.statusCard,
+.latestSources {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid rgba(30, 112, 81, 0.12);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.statusItem {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(246, 236, 218, 0.56);
+}
+
+.statusItem dt {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(30, 27, 22, 0.68);
+}
+
+.statusItem dd {
+  margin: 8px 0 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.messageList {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  max-height: 100%;
+  min-height: 320px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.emptyState {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 260px;
+  padding: 24px;
+  border: 1px dashed rgba(30, 27, 22, 0.16);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.45);
+  text-align: center;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.emptyBody {
+  max-width: 48ch;
+  margin: 0;
   line-height: 1.7;
 }
 
-.list {
-  margin: 24px 0 0;
-  padding-left: 20px;
+.messageCard {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(30, 27, 22, 0.08);
+}
+
+.userMessage {
+  background: linear-gradient(135deg, rgba(161, 64, 38, 0.14), rgba(255, 255, 255, 0.92));
+}
+
+.assistantMessage {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.messageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.messageRole {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(30, 27, 22, 0.72);
+}
+
+.messageContent {
+  margin: 0;
   line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.sourceList {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.sourceItem {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(246, 236, 218, 0.6);
+}
+
+.sourceLink {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sourceLink:hover {
+  text-decoration: underline;
+}
+
+.sourceMeta {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: rgba(30, 27, 22, 0.66);
+}
+
+.sourceSnippet {
+  margin: 8px 0 0;
+  line-height: 1.65;
+}
+
+.promptRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.composer {
+  display: grid;
+  gap: 14px;
+  padding-top: 6px;
+}
+
+@media (max-width: 1080px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .chatPanel {
+    min-height: unset;
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 18px;
+  }
+
+  .hero,
+  .panel {
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+  }
+
+  .chatHeaderActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .formGrid,
+  .statusGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .buttonRow,
+  .promptRow {
+    width: 100%;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+    justify-content: center;
+  }
 }

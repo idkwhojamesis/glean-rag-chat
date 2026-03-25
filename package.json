@@ -10,7 +10,8 @@
     "dev:web": "corepack pnpm --filter @glean-rag-chat/web dev",
     "dev:mcp": "corepack pnpm --filter @glean-rag-chat/mcp-server dev",
     "lint": "corepack pnpm exec eslint .",
-    "typecheck": "corepack pnpm -r typecheck",
+    "typecheck": "corepack pnpm -r typecheck && corepack pnpm exec tsc -p tsconfig.scripts.json --noEmit",
+    "smoke": "corepack pnpm exec tsx scripts/smoke-test.ts",
     "test": "corepack pnpm exec jest --runInBand",
     "test:watch": "corepack pnpm exec jest --watch"
   },

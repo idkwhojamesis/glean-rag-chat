@@ -34,6 +34,8 @@ export type {
   GleanCustomProperty,
   GleanDebugDocumentRequest,
   GleanDebugDocumentResponse,
+  GleanGetDocumentStatusRequest,
+  GleanGetDocumentStatusResponse,
   GleanDocumentDefinition,
   GleanDocumentPermissionsDefinition,
   GleanDocumentSpec,
@@ -98,10 +100,12 @@ export {
 } from './validation/chat-request.js';
 export { indexDocumentInputSchema, parseIndexDocumentInput } from './validation/index-request.js';
 export { inputLimits } from './validation/common.js';
+export { createChatService } from './services/chat-service.js';
 export { createIndexDocumentService } from './services/index-document-service.js';
 export {
   AppError,
   ConflictError,
+  ConfigurationError,
   ExternalServiceError,
   InputValidationError,
   TimeoutError,
@@ -121,6 +125,7 @@ export type { ChatHistoryOrder, MapChatInputToChatRequestOptions } from './mappe
 export type { MapChatResponseToResultOptions } from './mappers/chat-response.js';
 export type { MapIndexDocumentInputOptions } from './mappers/index-payload.js';
 export type { MapChatInputToSearchRequestOptions } from './mappers/search-payload.js';
+export type { ChatService, CreateChatServiceOptions } from './services/chat-service.js';
 export type {
   CreateIndexDocumentServiceOptions,
   IndexDocumentService

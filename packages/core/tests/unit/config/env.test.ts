@@ -1,8 +1,9 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 import { loadEnv, parseEnv } from '../../../src/config/env.js';
+import { ConfigurationError } from '../../../src/utils/errors.js';
 
 const originalEnv = { ...process.env };
 const tempDirs: string[] = [];
@@ -35,7 +36,7 @@ describe('parseEnv', () => {
       parseEnv({
         GLEAN_INSTANCE: 'acme'
       })
-    ).toThrow();
+    ).toThrow(ConfigurationError);
   });
 });
 
@@ -66,5 +67,27 @@ describe('loadEnv', () => {
     expect(env.GLEAN_INSTANCE).toBe('from-process-env');
     expect(env.GLEAN_INDEXING_API_TOKEN).toBe('index-from-env');
     expect(env.LOG_LEVEL).toBe('debug');
+  });
+
+  it('loads env files from the nearest parent directory by default', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'glean-rag-chat-env-parent-'));
+    const nestedDirectory = path.join(directory, 'apps', 'web');
+    tempDirs.push(directory);
+    await mkdir(nestedDirectory, { recursive: true });
+
+    await writeFile(
+      path.join(directory, '.env.local'),
+      [
+        'GLEAN_INSTANCE=from-parent',
+        'GLEAN_INDEXING_API_TOKEN=index-from-parent',
+        'GLEAN_CLIENT_API_TOKEN=client-from-parent',
+        'GLEAN_ACCESS_CHECK_USER_EMAIL=alex@glean-sandbox.com'
+      ].join('\n')
+    );
+
+    const env = loadEnv({ cwd: nestedDirectory });
+
+    expect(env.GLEAN_INSTANCE).toBe('from-parent');
+    expect(env.GLEAN_INDEXING_API_TOKEN).toBe('index-from-parent');
   });
 });
