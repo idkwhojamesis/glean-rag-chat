@@ -1,5 +1,5 @@
 # Glean RAG Chat
-
+Demo: https://www.youtube.com/watch?v=UUo_pZsh-RQ
 `glean-rag-chat` is a small monorepo that indexes documents into the `interviewds` Glean datasource, verifies that those documents are discoverable, and exposes grounded chat over the same datasource through both a Next.js web app and a local MCP server.
 
 The implementation is split into three parts:
