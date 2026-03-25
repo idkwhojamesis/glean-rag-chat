@@ -108,6 +108,7 @@ corepack pnpm smoke -- --skip-index
 ```
 
 The smoke script is intentionally manual. It talks to live Glean services, indexes real documents, waits for discoverability, and prints the final grounded answer plus normalized sources.
+By default it uses a longer live polling window than the app services do, because sandbox indexing can take longer than a local test-friendly timeout.
 
 ## Architecture Summary
 

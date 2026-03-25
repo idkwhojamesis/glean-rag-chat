@@ -16,6 +16,10 @@ const samplePayloadDirectory = new URL('./sample-payloads/', scriptDirectory);
 
 const indexPayloadFileNames = ['index-documentation.json', 'index-letter.json'] as const;
 const chatPayloadFileName = 'chat-question.json';
+const DEFAULT_SMOKE_DEBUG_POLL_ATTEMPTS = 30;
+const DEFAULT_SMOKE_SEARCH_POLL_ATTEMPTS = 12;
+const DEFAULT_SMOKE_DEBUG_POLL_DELAY_MS = 5000;
+const DEFAULT_SMOKE_SEARCH_POLL_DELAY_MS = 5000;
 
 function readJsonFile<T>(fileName: string): T {
   const fileUrl = new URL(fileName, samplePayloadDirectory);
@@ -32,9 +36,45 @@ function hasFlag(flag: string) {
   return process.argv.includes(flag);
 }
 
+function getOptionValue(flag: string) {
+  const flagPrefix = `${flag}=`;
+  const inlineMatch = process.argv.find((argument) => argument.startsWith(flagPrefix));
+
+  if (inlineMatch !== undefined) {
+    return inlineMatch.slice(flagPrefix.length);
+  }
+
+  const flagIndex = process.argv.indexOf(flag);
+
+  if (flagIndex === -1) {
+    return undefined;
+  }
+
+  return process.argv[flagIndex + 1];
+}
+
+function parsePositiveIntegerOption(flag: string, fallback: number) {
+  const rawValue = getOptionValue(flag);
+
+  if (rawValue === undefined) {
+    return fallback;
+  }
+
+  const parsedValue = Number.parseInt(rawValue, 10);
+
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+    throw new Error(`${flag} must be a positive integer.`);
+  }
+
+  return parsedValue;
+}
+
 function printUsage() {
   console.log('Usage: corepack pnpm smoke [-- --skip-index]');
   console.log('Runs the live Glean smoke test using scripts/sample-payloads/*.json.');
+  console.log(
+    'Optional flags: --debug-poll-attempts <n>, --search-poll-attempts <n>, --debug-poll-delay-ms <n>, --search-poll-delay-ms <n>'
+  );
 }
 
 async function main() {
@@ -44,15 +84,38 @@ async function main() {
   }
 
   const skipIndex = hasFlag('--skip-index');
+  const debugPollAttempts = parsePositiveIntegerOption('--debug-poll-attempts', DEFAULT_SMOKE_DEBUG_POLL_ATTEMPTS);
+  const searchPollAttempts = parsePositiveIntegerOption(
+    '--search-poll-attempts',
+    DEFAULT_SMOKE_SEARCH_POLL_ATTEMPTS
+  );
+  const debugPollDelayMs = parsePositiveIntegerOption(
+    '--debug-poll-delay-ms',
+    DEFAULT_SMOKE_DEBUG_POLL_DELAY_MS
+  );
+  const searchPollDelayMs = parsePositiveIntegerOption(
+    '--search-poll-delay-ms',
+    DEFAULT_SMOKE_SEARCH_POLL_DELAY_MS
+  );
   const env = loadEnv({ cwd: process.cwd() });
   const logger = createLogger({
     level: env.LOG_LEVEL,
     name: 'glean-rag-chat-smoke'
   });
-  const indexService = createIndexDocumentService({ env, logger });
+  const indexService = createIndexDocumentService({
+    env,
+    logger,
+    debugPollAttempts,
+    searchPollAttempts,
+    debugPollDelayMs,
+    searchPollDelayMs
+  });
   const chatService = createChatService({ env, logger });
 
   console.log(`Using datasource ${env.GLEAN_DATASOURCE} on instance ${env.GLEAN_INSTANCE}.`);
+  console.log(
+    `Smoke verification window: debug=${debugPollAttempts}x${debugPollDelayMs}ms, search=${searchPollAttempts}x${searchPollDelayMs}ms.`
+  );
 
   if (!skipIndex) {
     printSection('Index Documents');
